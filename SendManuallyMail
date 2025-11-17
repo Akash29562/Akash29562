@@ -1,0 +1,96 @@
+
+var temperature = me.Temperature;
+var minTemp = 80;
+var maxTemp = 90;
+var result = "";
+
+
+var email = To;
+var username = "";
+
+if (email && email.indexOf("@") > -1) {
+    var namePart = email.split("@")[0]; 
+    namePart = namePart.replace(/[0-9._-]/g, " ");
+    namePart = namePart.trim(); 
+    
+    
+    username = namePart.split(" ")[0]; 
+    
+    
+    if (username.length > 0) {
+        username = username.charAt(0).toUpperCase() + username.slice(1).toLowerCase();
+    } else {
+        username = "User";
+    }
+} else {
+    username = "User";
+}
+
+
+
+if (minTemp !== undefined && maxTemp !== undefined && temperature !== undefined) {
+
+    if (temperature >= minTemp && temperature <= maxTemp) {
+
+        var subject = "Temperature Alert: " + temperature + "°C Detected!";
+        var now = new Date();
+        var formattedDate =
+            now.getDate().toString().padStart(2, '0') + '/' +
+            (now.getMonth() + 1).toString().padStart(2, '0') + '/' +
+            now.getFullYear() + ' ' +
+            now.getHours().toString().padStart(2, '0') + ':' +
+            now.getMinutes().toString().padStart(2, '0') + ':' +
+            now.getSeconds().toString().padStart(2, '0');
+
+        
+        var htmlBody =
+"<div style='font-family:Segoe UI,Arial,sans-serif; color:#333; background-color:#f4f7fb; padding:25px; border-radius:12px;'>\
+  <h2 style='text-align:center; background:#d9534f; padding:12px; color:#fff; border-radius:8px;'>🚨 High Temperature Alert 🚨</h2>\
+  <div style='background-color:#fff; padding:20px; border-radius:8px;'>\
+    <p>Hello <b>" + username + "</b>,</p>\
+    <p style='font-size:15px;'>A high temperature threshold has been triggered. Please review the details:</p>\
+    <table style='border-collapse:collapse; width:100%; margin:20px 0;'>\
+      <tr><td><b>🌡️ Current Temperature</b></td><td style='text-align:right; color:#d9534f;'>" + temperature + " °C</td></tr>\
+      <tr><td><b>📏 Alert Range</b></td><td style='text-align:right;'>" + minTemp + "–" + maxTemp + " °C</td></tr>\
+      <tr><td><b>🕒 Triggered Time</b></td><td style='text-align:right;'>" + formattedDate + "</td></tr>\
+    </table>\
+    <p>Please take necessary action to bring the temperature back within safe range.</p>\
+  </div>\
+</div>";
+
+
+
+
+        try {
+            Things["GmailServer_Thing"].SendMessage({
+                from: "\"ThingWorx Alert System\" <thingworxmailer@gmail.com>",
+                to: To,
+                subject: subject,
+                body: htmlBody,
+                contentType: "text/html"
+            });
+
+            result = "Alert triggered! Mail sent to: " + To;
+            logger.warn(result);
+
+        } catch (err) {
+            result = "Failed to send alert email: " + err.message;
+            logger.error(result);
+        }
+
+    } else {
+        result = "Temperature (" + temperature + "°C) is outside alert range.";
+        logger.info(result);
+    }
+
+} else {
+    result = "Missing Temperature or Alert Range properties.";
+    logger.error(result);
+}
+
+result;
+
+
+
+
+
