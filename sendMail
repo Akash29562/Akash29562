@@ -1,5 +1,7 @@
 
+
 //*************************************| DO NOT CHANGE ANYTHING IN THIS CODE |************************************
+
 
 
 var temperature = me.Temperature;
@@ -7,31 +9,60 @@ var minTemp = 80;
 var maxTemp = 90;
 var result = "";
 
+function extractName(email) {
+    if (!email) return "User";
+    var username = email.split("@")[0];
+    var clean = username.replace(/[\._\-]/g, " ");
+    var parts = clean.split(" ");
+    var first = parts[0];
+    if (!first) return "User";
+    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+}
 
-if (minTemp !== undefined && maxTemp !== undefined && temperature !== undefined) {
+if (temperature !== undefined && minTemp !== undefined && maxTemp !== undefined) {
 
     if (temperature >= minTemp && temperature <= maxTemp) {
-        
-        
-        var subject = "Temperature Alert: " + temperature + "°C Detected!";
-        var now = new Date();
-        var formattedDate = 
-            now.getDate().toString().padStart(2, '0') + '/' +
-            (now.getMonth() + 1).toString().padStart(2, '0') + '/' +
-            now.getFullYear() + ' ' +
-            now.getHours().toString().padStart(2, '0') + ':' +
-            now.getMinutes().toString().padStart(2, '0') + ':' +
-            now.getSeconds().toString().padStart(2, '0');
-        
 
-       
-        var htmlBody =
+        var now = new Date();
+        var formattedDate =
+            now.getDate().toString().padStart(2, "0") + "/" +
+            (now.getMonth() + 1).toString().padStart(2, "0") + "/" +
+            now.getFullYear() + " " +
+            now.getHours().toString().padStart(2, "0") + ":" +
+            now.getMinutes().toString().padStart(2, "0") + ":" +
+            now.getSeconds().toString().padStart(2, "0");
+
+        
+        var emailList = [];
+        if (me.EmailConfig && me.EmailConfig.rows.length > 0) {
+            var itr = me.EmailConfig.rows.iterator();
+            while (itr.hasNext()) {
+                var row = itr.next();
+                if (row.Email && row.Email.trim() !== "") {
+                    emailList.push(row.Email.trim());
+                }
+            }
+        }
+
+        if (emailList.length === 0) {
+            result = "No email IDs found in EmailConfig.";
+            logger.warn(result);
+        } else {
+
+            
+            for (var i = 0; i < emailList.length; i++) {
+                var email = emailList[i];
+                var friendlyName = extractName(email);
+
+                var subject = "Temperature Alert: " + temperature + "°C Detected!";
+
+               var htmlBody =
 "<div style='font-family:Segoe UI,Arial,sans-serif; color:#333; background-color:#f4f7fb; padding:25px; border-radius:12px; border:1px solid #e0e6ed;'>\
   <div style='text-align:center; background:linear-gradient(135deg,#ff6b6b,#d9534f); padding:15px 10px; border-radius:10px 10px 0 0;'>\
-    <h2 style='margin:0; font-size:22px; color:#fff;'>🚨 High Temperature Alert 🚨</h2>\
+    <h2 style='margin:0; font-size:22px; color:#d9534f;'>🚨 High Temperature Alert 🚨</h2>\
   </div>\
   <div style='background-color:#fff; padding:20px; border-radius:0 0 10px 10px;'>\
-    <p style='font-size:15px;'>Hello <b>Team</b>,</p>\
+    <p style='font-size:15px;'>Hello <b>" + friendlyName + "</b>,</p>\
     <p style='font-size:15px;'>An alert has been <b style=\"color:#d9534f;\">triggered due to high temperature</b> in the system. Please review the details below:</p>\
     <table style='border-collapse:collapse; width:100%; margin:20px 0; box-shadow:0 2px 6px rgba(0,0,0,0.05);'>\
       <tr style='background-color:#f9fafc;'>\
@@ -48,12 +79,6 @@ if (minTemp !== undefined && maxTemp !== undefined && temperature !== undefined)
       </tr>\
     </table>\
     <p style='font-size:15px;'>⚠️ Please take the necessary action to bring the temperature back within safe limits.</p>\
-    <div style='margin-top:25px; text-align:center;'>\
-      <a href='http://192.168.1.142:8080/Thingworx/Runtime/index.html?mashup=Mashup.OEE.Modules' target='_blank' \
-      style='background-color:#d9534f; color:#fff; padding:10px 20px; text-decoration:none; border-radius:6px; font-weight:bold; display:inline-block;'>\
-      View in ThingWorx Dashboard\
-      </a>\
-    </div>\
     <hr style='border:none; border-top:1px solid #ddd; margin:30px 0;'>\
     <p style='font-size:13px; color:#777; text-align:center;'>\
       This is an automated message from <b>ThingWorx Alert System</b>.<br>\
@@ -62,55 +87,32 @@ if (minTemp !== undefined && maxTemp !== undefined && temperature !== undefined)
   </div>\
 </div>";
 
-       
-        var emailList = [];
 
-        if (me.EmailConfig !== undefined && me.EmailConfig.rows.length > 0) {
-            var table = me.EmailConfig;
-            
-            var tableIter = table.rows.iterator();
-            while (tableIter.hasNext()) {
-                var row = tableIter.next();
-                if (row.Email && row.Email.trim() !== "") {
-                    emailList.push(row.Email.trim());
+                try {
+                    Things["GmailServer_Thing"].SendMessage({
+                        from: "\"ThingWorx Alert System\" <thingworxmailer@gmail.com>",
+                        to: email,
+                        subject: subject,
+                        body: htmlBody,
+                        contentType: "text/html"
+                    });
+
+                    logger.warn("Mail sent to: " + email);
+
+                } catch (err) {
+                    logger.error("Failed to send email to " + email + ": " + err.message);
                 }
             }
-        }
 
-        
-        if (emailList.length > 0) {
- 
-            var recipients = emailList.join(";");
-
-            try {
-                Things["GmailServer_Thing"].SendMessage({
-                    from: "\" ThingWorx Alert System \" <thingworxmailer@gmail.com>",
-                    to: recipients,
-                    subject: subject,
-                    body: htmlBody,
-                    contentType: "text/html"
-                });
-
-                result = "Alert triggered! Mail sent to: " + recipients;
-                logger.warn(result);
-            } catch (err) {
-                result = "Failed to send alert email: " + err.message;
-                logger.error(result);
-            }
-        } else {
-            result = "No email IDs found in EmailConfig.";
-            logger.warn(result);
+            result = "Alert triggered! Emails sent to all users.";
         }
 
     } else {
-        result = "Temperature (" + temperature + "°C) is outside alert range (" + minTemp + "–" + maxTemp + "°C).";
-        logger.info(result);
+        result = "Temperature is outside alert range.";
     }
 
 } else {
-    result = "Missing Temperature or Alert Range properties.";
-    logger.error(result);
+    result = "Temperature or threshold missing.";
 }
 
 result;
-
